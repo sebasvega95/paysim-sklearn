@@ -1,5 +1,6 @@
 #!env/bin/python
 from __future__ import division
+from collections import Counter
 from datetime import timedelta
 import numpy as np
 from sklearn import svm, metrics
@@ -7,7 +8,6 @@ from sklearn.externals import joblib
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from time import time
-import sys
 
 from lib.data import load_data
 
@@ -50,11 +50,7 @@ def main():
         end = time()
         print 'Model loaded in', timedelta(seconds=end - start)
     except IOError:
-        max_iter = 10000
-        if len(sys.argv) == 2:
-            max_iter = int(sys.argv[1])
-        print 'max_iter =', max_iter
-        clf = svm.OneClassSVM(nu=proportion_anomalies, kernel='rbf', max_iter=max_iter)
+        clf = svm.OneClassSVM(nu=proportion_anomalies, kernel='rbf')
         clf.fit(X_train)
         end = time()
         print 'Training done in', timedelta(seconds=end - start)
@@ -63,14 +59,24 @@ def main():
     # Testing
     start = time()
     predictions = clf.predict(X_test)
+    predictions[predictions == 1] = 0
+    predictions[predictions == -1] = 1
+    y_test[y_test == 1] = 0
+    y_test[y_test == -1] = 1
+
     precision = metrics.precision_score(y_test, predictions)
     recall = metrics.recall_score(y_test, predictions)
     f1_score = metrics.f1_score(y_test, predictions)
+    roc_auc = metrics.roc_auc_score(y_test, predictions)
     end = time()
+
     print 'Testing done in', timedelta(seconds=end - start)
+    print '\t-> True vals:', Counter(y_test)
+    print '\t-> Predicted:', Counter(predictions)
     print '\tPrecision:', precision
     print '\tRecall:', recall
     print '\tF1-score:', f1_score
+    print '\tROC AUC:', roc_auc
 
 
 if __name__ == '__main__':
